@@ -48,6 +48,7 @@ class AggregatingAccumulator private(
   private var joinedRow: JoinedRow = _
 
   private var buffer: SpecificInternalRow = _
+  private var bufferIsSerialised: Boolean = false
 
   private def createBuffer(): SpecificInternalRow = {
     val buffer = new SpecificInternalRow(bufferSchema)
@@ -199,13 +200,12 @@ class AggregatingAccumulator private(
 
   override def withBufferSerialized(): AggregatingAccumulator = {
     assert(!isAtDriverSide)
-    if (buffer != null) {
-      var i = 0
+    if (buffer != null && !bufferIsSerialised) {
       // AggregatingAccumulator runs on executor, we should serialize all TypedImperativeAggregate.
-      while (i < typedImperatives.length) {
-        typedImperatives(i).serializeAggregateBufferInPlace(buffer)
-        i += 1
+      for (typedImperative <- typedImperatives) {
+        typedImperative.serializeAggregateBufferInPlace(buffer)
       }
+      bufferIsSerialised = true
     }
     this
   }
